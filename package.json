@@ -1,0 +1,39 @@
+{
+  "name": "campus-connect",
+  "version": "1.0.0",
+  "description": "CampusConnect: An integrated student management and collaboration platform",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "server": "node server/server.js",
+    "client": "vite --config client/vite.config.js client",
+    "dev": "node server/server.js",
+    "build": "vite build client"
+  },
+  "keywords": [
+    "campus",
+    "student-collaboration",
+    "threejs",
+    "hackathons",
+    "dashboard"
+  ],
+  "author": "Smart Campus Connect Team",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "canvas-confetti": "^1.9.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.475.0",
+    "mongoose": "^8.10.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.173.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.1.0"
+  }
+}
