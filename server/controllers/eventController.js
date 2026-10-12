@@ -85,11 +85,21 @@ exports.toggleRegister = (req, res) => {
       return res.status(404).json({ success: false, message: 'Event or user not found' });
     }
 
+    if (result.isExternal) {
+      return res.json({
+        success: false,
+        isExternal: true,
+        externalUrl: result.externalUrl,
+        message: result.message || 'Please register on the official portal using the verified registration link.',
+        event: result.event,
+      });
+    }
+
     res.json({
       success: true,
       registered: result.registered,
       message: result.registered
-        ? 'Successfully registered for this event!'
+        ? 'Successfully registered for this campus event!'
         : 'Registration cancelled.',
       event: result.event,
       userRegisteredEvents: result.user.registeredEvents,

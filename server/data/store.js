@@ -165,6 +165,18 @@ class DataStore {
     const user = this.findUserById(userId);
     if (!event || !user) return null;
 
+    // External hackathons require real registration on the official platform portal
+    if (event.isExternalHackathon && event.externalUrl) {
+      return {
+        registered: false,
+        isExternal: true,
+        externalUrl: event.externalUrl,
+        message: `Directing to official ${event.platform || 'organizer'} portal for verified registration.`,
+        event,
+        user,
+      };
+    }
+
     if (!event.registrations) event.registrations = [];
     if (!user.registeredEvents) user.registeredEvents = [];
 

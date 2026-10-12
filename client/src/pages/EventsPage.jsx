@@ -14,9 +14,12 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Bookmark,
   Share2,
   CalendarCheck,
+  Award,
+  Globe,
+  ShieldCheck,
+  Copy,
 } from 'lucide-react';
 
 const EventsPage = () => {
@@ -26,6 +29,7 @@ const EventsPage = () => {
 
   // Filters
   const [selectedDept, setSelectedDept] = useState('All Departments');
+  const [selectedType, setSelectedType] = useState('All'); // 'All' | 'Hackathons' | 'Workshops' | 'Festivals'
   const [selectedStatus, setSelectedStatus] = useState('All Events');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeView, setActiveView] = useState('grid'); // 'grid' | 'calendar' | 'registered'
@@ -34,7 +38,7 @@ const EventsPage = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   // Calendar state
-  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date(2026, 5, 1)); // June 2026
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date(2026, 9, 1)); // Oct 2026
 
   const departments = [
     'All Departments',
@@ -46,6 +50,13 @@ const EventsPage = () => {
     'MECH',
     'CIVIL',
     'MBA',
+  ];
+
+  const types = [
+    { id: 'All', label: 'All Events' },
+    { id: 'Hackathons', label: '🔥 National & Global Hackathons' },
+    { id: 'Workshops', label: 'Campus Workshops & Bootcamps' },
+    { id: 'Festivals', label: 'Symposiums & Expos' },
   ];
 
   const statuses = ['All Events', 'Upcoming', 'Ongoing', 'Completed'];
@@ -72,13 +83,12 @@ const EventsPage = () => {
     fetchEvents();
   }, [selectedDept, selectedStatus, searchQuery]);
 
-  // Handle Event Registration Toggle
-  const handleRegisterToggle = async (eventId, e) => {
+  // Handle Internal In-Person RSVP Toggle (ONLY for non-external college events)
+  const handleInternalRsvpToggle = async (eventId, e) => {
     if (e) e.stopPropagation();
     try {
       const res = await api.toggleRegisterEvent(eventId);
       if (res.success) {
-        // Update local state
         setEvents((prev) =>
           prev.map((ev) => (ev._id === eventId ? res.event : ev))
         );
@@ -93,13 +103,15 @@ const EventsPage = () => {
             origin: { y: 0.7 },
             colors: ['#2563eb', '#7c3aed', '#10b981'],
           });
-          showToast(res.message, 'success');
+          showToast('Campus in-person seat reserved!', 'success');
         } else {
-          showToast(res.message, 'info');
+          showToast('Campus seat reservation cancelled.', 'info');
         }
+      } else if (res.isExternal) {
+        showToast(res.message, 'info');
       }
     } catch (err) {
-      showToast(err.message || 'Failed to update registration', 'error');
+      showToast(err.message || 'Failed to update RSVP', 'error');
     }
   };
 
@@ -108,11 +120,48 @@ const EventsPage = () => {
     return event.registrations.includes(user._id);
   };
 
-  // Filtered list based on view
+  // Copy official registration link to clipboard
+  const handleCopyLink = (url, name, e) => {
+    if (e) e.stopPropagation();
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    showToast(`Official ${name || 'hackathon'} link copied to clipboard!`, 'success');
+  };
+
+  // Filtered list based on view and type
   const displayedEvents = events.filter((ev) => {
+    // Registered View
     if (activeView === 'registered') {
       return isUserRegistered(ev);
     }
+
+    // Type filter
+    if (selectedType === 'Hackathons') {
+      if (!ev.isExternalHackathon && ev.category !== 'Hackathon') return false;
+    } else if (selectedType === 'Workshops') {
+      if (ev.category !== 'Workshop' && ev.category !== 'Bootcamp') return false;
+    } else if (selectedType === 'Festivals') {
+      if (
+        ev.category !== 'Technical Festival' &&
+        ev.category !== 'Expo' &&
+        ev.category !== 'Symposium' &&
+        ev.category !== 'Summit' &&
+        ev.category !== 'Pitch Day'
+      )
+        return false;
+    }
+
+    // Search query also checks platform
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const match =
+        ev.title.toLowerCase().includes(q) ||
+        ev.description.toLowerCase().includes(q) ||
+        ev.location.toLowerCase().includes(q) ||
+        (ev.platform && ev.platform.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+
     return true;
   });
 
@@ -155,30 +204,30 @@ const EventsPage = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div
             style={{
-              width: '44px',
-              height: '44px',
+              width: '46px',
+              height: '46px',
               borderRadius: '14px',
-              backgroundColor: '#f5f3ff',
-              color: '#7c3aed',
+              backgroundColor: '#eff6ff',
+              color: '#2563eb',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '22px',
             }}
           >
-            📅
+            🚀
           </div>
           <div>
             <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: '#0f172a' }}>
-              Campus Events
+              Events & National Hackathons
             </h1>
             <p style={{ fontSize: '0.92rem', color: '#64748b' }}>
-              Discover and participate in events organized by different departments.
+              Explore real hackathons from Devfolio, Unstop, SIH, MLH & campus departmental sessions.
             </p>
           </div>
         </div>
 
-        {/* View Switcher: Grid View | Interactive Calendar | My Registered Events */}
+        {/* View Switcher: Grid View | Interactive Calendar | My In-Person RSVPs */}
         <div
           style={{
             display: 'flex',
@@ -239,13 +288,13 @@ const EventsPage = () => {
               gap: '6px',
             }}
           >
-            <CalendarCheck size={15} /> My Registered Events
+            <CalendarCheck size={15} /> Campus RSVPs
           </button>
         </div>
       </div>
 
       {/* ======================================================== */}
-      {/* 10. DEPARTMENT-WISE & 11. STATUS COMBINED FILTERS        */}
+      {/* FILTER CONTROLS BAR                                      */}
       {/* ======================================================== */}
       <div
         className="card"
@@ -272,7 +321,7 @@ const EventsPage = () => {
           <Search size={18} color="#94a3b8" />
           <input
             type="text"
-            placeholder="Search events by title, description, or location..."
+            placeholder="Search by title, Devfolio, Unstop, SIH, MLH, technology or location..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -284,11 +333,51 @@ const EventsPage = () => {
               color: '#0f172a',
             }}
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
 
-        {/* 10. Department-wise Filter Buttons */}
+        {/* Event Type Filter Pills */}
         <div>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', marginBottom: '8px' }}>
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', marginBottom: '8px' }}>
+            EVENT CATEGORY:
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {types.map((tp) => {
+              const isSelected = selectedType === tp.id;
+              return (
+                <button
+                  key={tp.id}
+                  onClick={() => setSelectedType(tp.id)}
+                  style={{
+                    padding: '7px 16px',
+                    borderRadius: '999px',
+                    border: isSelected ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                    backgroundColor: isSelected ? '#eff6ff' : '#ffffff',
+                    color: isSelected ? '#1d4ed8' : '#334155',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isSelected ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
+                  }}
+                >
+                  {tp.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Department-wise Filter Buttons */}
+        <div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', marginBottom: '8px' }}>
             CLASSIFIED BY DEPARTMENT:
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -299,16 +388,15 @@ const EventsPage = () => {
                   key={dept}
                   onClick={() => setSelectedDept(dept)}
                   style={{
-                    padding: '6px 14px',
-                    borderRadius: '999px',
-                    border: isSelected ? '1px solid #2563eb' : '1px solid #e2e8f0',
-                    backgroundColor: isSelected ? '#2563eb' : '#ffffff',
-                    color: isSelected ? '#ffffff' : '#334155',
+                    padding: '5px 12px',
+                    borderRadius: '8px',
+                    border: isSelected ? '1px solid #7c3aed' : '1px solid #e2e8f0',
+                    backgroundColor: isSelected ? '#f5f3ff' : '#ffffff',
+                    color: isSelected ? '#6d28d9' : '#475569',
                     fontWeight: 600,
-                    fontSize: '0.82rem',
+                    fontSize: '0.8rem',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    boxShadow: isSelected ? '0 4px 10px rgba(37, 99, 235, 0.2)' : 'none',
                   }}
                 >
                   {dept}
@@ -318,12 +406,12 @@ const EventsPage = () => {
           </div>
         </div>
 
-        {/* 11. Event Status Filters */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>
-            EVENT STATUS:
+        {/* Event Status Filters & Counter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', paddingTop: '4px' }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b' }}>
+            STATUS:
           </span>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '6px' }}>
             {statuses.map((st) => {
               const isSelected = selectedStatus === st;
               return (
@@ -331,13 +419,13 @@ const EventsPage = () => {
                   key={st}
                   onClick={() => setSelectedStatus(st)}
                   style={{
-                    padding: '5px 12px',
-                    borderRadius: '8px',
-                    border: isSelected ? '1px solid #7c3aed' : '1px solid #e2e8f0',
-                    backgroundColor: isSelected ? '#f5f3ff' : '#ffffff',
-                    color: isSelected ? '#7c3aed' : '#64748b',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: isSelected ? '1px solid #059669' : '1px solid #e2e8f0',
+                    backgroundColor: isSelected ? '#ecfdf5' : '#ffffff',
+                    color: isSelected ? '#047857' : '#64748b',
                     fontWeight: 600,
-                    fontSize: '0.8rem',
+                    fontSize: '0.78rem',
                     cursor: 'pointer',
                   }}
                 >
@@ -346,14 +434,14 @@ const EventsPage = () => {
               );
             })}
           </div>
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginLeft: 'auto' }}>
-            Showing: <strong>{selectedDept}</strong> • <strong>{selectedStatus}</strong>
+          <span style={{ fontSize: '0.8rem', color: '#64748b', marginLeft: 'auto' }}>
+            Showing <strong>{displayedEvents.length}</strong> events • No mock registrations for hackathons
           </span>
         </div>
       </div>
 
       {/* ======================================================== */}
-      {/* 17. CALENDAR VIEW                                        */}
+      {/* CALENDAR VIEW                                            */}
       {/* ======================================================== */}
       {activeView === 'calendar' && (
         <div className="card" style={{ padding: '28px', marginBottom: '32px' }}>
@@ -379,7 +467,7 @@ const EventsPage = () => {
                   borderRadius: '999px',
                 }}
               >
-                Filtered by {selectedDept}
+                Filtered: {selectedDept}
               </span>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -469,7 +557,7 @@ const EventsPage = () => {
                         style={{
                           fontSize: '0.7rem',
                           fontWeight: 600,
-                          backgroundColor: '#2563eb',
+                          backgroundColor: ev.isExternalHackathon ? '#1d4ed8' : '#7c3aed',
                           color: 'white',
                           padding: '3px 6px',
                           borderRadius: '6px',
@@ -480,7 +568,7 @@ const EventsPage = () => {
                         }}
                         title={ev.title}
                       >
-                        {ev.title}
+                        {ev.isExternalHackathon ? '🚀 ' : ''}{ev.title}
                       </div>
                     ))}
                   </div>
@@ -492,34 +580,36 @@ const EventsPage = () => {
       )}
 
       {/* ======================================================== */}
-      {/* 12. EVENT CARDS GRID                                     */}
+      {/* EVENT CARDS GRID                                         */}
       {/* ======================================================== */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>
-          Loading department events...
+          Loading campus events and hackathons...
         </div>
       ) : displayedEvents.length === 0 ? (
         <div className="card" style={{ padding: '50px', textAlign: 'center', color: '#64748b' }}>
-          <div style={{ fontSize: '42px', marginBottom: '10px' }}>📅</div>
+          <div style={{ fontSize: '42px', marginBottom: '10px' }}>🔍</div>
           <h3 style={{ fontSize: '1.2rem', color: '#1e293b' }}>
-            {activeView === 'registered' ? 'No Registered Events Yet' : 'No Events Match Filter'}
+            {activeView === 'registered' ? 'No Campus In-Person RSVPs Found' : 'No Events Match Filter'}
           </h3>
           <p style={{ marginTop: '4px', fontSize: '0.9rem' }}>
             {activeView === 'registered'
-              ? 'Browse the department events list and click "Register" to add them to your calendar.'
-              : 'Try changing your department or status filter criteria.'}
+              ? 'Campus workshops with reserved seats will appear here. For national hackathons, registrations are made directly on the verified host websites.'
+              : 'Try choosing another category, department, or clearing your search.'}
           </p>
         </div>
       ) : (
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
             gap: '24px',
           }}
         >
           {displayedEvents.map((ev) => {
+            const isExternal = ev.isExternalHackathon || !!ev.externalUrl;
             const registered = isUserRegistered(ev);
+
             return (
               <div
                 key={ev._id}
@@ -528,6 +618,8 @@ const EventsPage = () => {
                   display: 'flex',
                   flexDirection: 'column',
                   position: 'relative',
+                  border: isExternal ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                  boxShadow: isExternal ? '0 4px 16px rgba(37, 99, 235, 0.08)' : 'var(--shadow-sm)',
                 }}
               >
                 {/* Event Image */}
@@ -545,13 +637,14 @@ const EventsPage = () => {
                     onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1.0)')}
                   />
 
-                  {/* Department & Status Badges */}
+                  {/* Top Badges */}
                   <div
                     style={{
                       position: 'absolute',
                       top: '12px',
                       left: '12px',
                       display: 'flex',
+                      flexWrap: 'wrap',
                       gap: '6px',
                     }}
                   >
@@ -561,6 +654,26 @@ const EventsPage = () => {
                     >
                       {ev.department}
                     </span>
+
+                    {isExternal && ev.platform && (
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          padding: '4px 8px',
+                          borderRadius: '999px',
+                          backgroundColor: '#1e40af',
+                          color: '#ffffff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                        }}
+                      >
+                        <Globe size={11} /> {ev.platform}
+                      </span>
+                    )}
+
                     <span
                       style={{
                         fontSize: '0.72rem',
@@ -591,11 +704,11 @@ const EventsPage = () => {
                       position: 'absolute',
                       bottom: '12px',
                       right: '12px',
-                      backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.8)',
                       backdropFilter: 'blur(4px)',
                       color: 'white',
                       fontSize: '0.72rem',
-                      fontWeight: 600,
+                      fontWeight: 700,
                       padding: '3px 10px',
                       borderRadius: '999px',
                     }}
@@ -608,8 +721,8 @@ const EventsPage = () => {
                 <div style={{ padding: '22px', display: 'flex', flexDirection: 'column', flex: 1, gap: '12px' }}>
                   <h3
                     style={{
-                      fontSize: '1.25rem',
-                      fontWeight: 700,
+                      fontSize: '1.22rem',
+                      fontWeight: 800,
                       color: '#0f172a',
                       lineHeight: 1.3,
                       cursor: 'pointer',
@@ -622,13 +735,40 @@ const EventsPage = () => {
                   <p
                     style={{
                       fontSize: '0.88rem',
-                      color: '#64748b',
+                      color: '#475569',
                       lineHeight: 1.5,
                       flex: 1,
                     }}
                   >
                     {ev.description}
                   </p>
+
+                  {/* Highlights (Prize & Team Size if available) */}
+                  {isExternal && (ev.prizePool || ev.teamSize) && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                        backgroundColor: '#eff6ff',
+                        padding: '8px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid #dbeafe',
+                        fontSize: '0.78rem',
+                      }}
+                    >
+                      {ev.prizePool && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#047857', fontWeight: 700 }}>
+                          <Award size={13} /> {ev.prizePool}
+                        </div>
+                      )}
+                      {ev.teamSize && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#1e40af', fontWeight: 600, marginLeft: 'auto' }}>
+                          <Users size={13} /> {ev.teamSize}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Metadata: Date, Time, Location */}
                   <div
@@ -649,66 +789,107 @@ const EventsPage = () => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Clock size={14} color="#7c3aed" />
-                      <strong>Time:</strong> {ev.time}
+                      <strong>Schedule:</strong> {ev.time}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <MapPin size={14} color="#ea580c" />
-                      <strong>Location:</strong> {ev.location}
+                      <strong>Venue/Mode:</strong> {ev.location}
                     </div>
                   </div>
 
-                  {/* External Hackathon Link (if available - genuine links without duplicates) */}
-                  {ev.externalUrl && (
-                    <a
-                      href={ev.externalUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        color: '#2563eb',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      Official National Portal <ExternalLink size={13} />
-                    </a>
+                  {/* ACTION BUTTONS */}
+                  {isExternal ? (
+                    /* REAL HACKATHON: DIRECT OFFICIAL REGISTRATION LINK + COPY LINK */
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                      <a
+                        href={ev.externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-primary"
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          fontSize: '0.85rem',
+                          borderRadius: '10px',
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          fontWeight: 700,
+                          background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
+                          boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)',
+                        }}
+                      >
+                        <span>Register on {ev.platform || 'Portal'}</span>
+                        <ExternalLink size={14} />
+                      </a>
+
+                      <button
+                        onClick={(e) => handleCopyLink(ev.externalUrl, ev.platform, e)}
+                        className="btn btn-secondary"
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: '0.82rem',
+                          borderRadius: '10px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontWeight: 600,
+                        }}
+                        title="Copy official registration URL"
+                      >
+                        <Share2 size={14} /> Copy
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedEvent(ev)}
+                        className="btn btn-secondary"
+                        style={{
+                          padding: '10px 12px',
+                          fontSize: '0.82rem',
+                          borderRadius: '10px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Details
+                      </button>
+                    </div>
+                  ) : (
+                    /* INTERNAL CAMPUS SESSION: CAMPUS RSVP */
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                      <button
+                        onClick={(e) => handleInternalRsvpToggle(ev._id, e)}
+                        className={registered ? 'btn btn-success' : 'btn btn-primary'}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          fontSize: '0.86rem',
+                          borderRadius: '10px',
+                        }}
+                      >
+                        {registered ? (
+                          <>
+                            <CheckCircle size={15} /> Seat Reserved
+                          </>
+                        ) : (
+                          'RSVP for Campus Session'
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedEvent(ev)}
+                        className="btn btn-secondary"
+                        style={{
+                          padding: '10px 14px',
+                          fontSize: '0.85rem',
+                          borderRadius: '10px',
+                        }}
+                      >
+                        Details
+                      </button>
+                    </div>
                   )}
-
-                  {/* Buttons: Register & View Details */}
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                    <button
-                      onClick={(e) => handleRegisterToggle(ev._id, e)}
-                      className={registered ? 'btn btn-success' : 'btn btn-primary'}
-                      style={{
-                        flex: 1,
-                        padding: '9px',
-                        fontSize: '0.88rem',
-                        borderRadius: '10px',
-                      }}
-                    >
-                      {registered ? (
-                        <>
-                          <CheckCircle size={16} /> Registered
-                        </>
-                      ) : (
-                        'Register'
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => setSelectedEvent(ev)}
-                      className="btn btn-secondary"
-                      style={{
-                        padding: '9px 14px',
-                        fontSize: '0.88rem',
-                        borderRadius: '10px',
-                      }}
-                    >
-                      View Details
-                    </button>
-                  </div>
                 </div>
               </div>
             );
@@ -734,7 +915,7 @@ const EventsPage = () => {
                   position: 'absolute',
                   top: '14px',
                   right: '14px',
-                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  backgroundColor: 'rgba(0, 0, 0, 0.55)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '50%',
@@ -751,7 +932,7 @@ const EventsPage = () => {
             </div>
 
             <div style={{ padding: '28px' }}>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
                 <span className={`badge badge-${selectedEvent.department.toLowerCase().replace(/[^a-z]/g, '')}`}>
                   {selectedEvent.department}
                 </span>
@@ -767,9 +948,26 @@ const EventsPage = () => {
                 >
                   {selectedEvent.category}
                 </span>
+                {selectedEvent.isExternalHackathon && (
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      padding: '3px 8px',
+                      borderRadius: '999px',
+                      backgroundColor: '#ecfdf5',
+                      color: '#059669',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <ShieldCheck size={12} /> Verified Host: {selectedEvent.platform || 'National Portal'}
+                  </span>
+                )}
               </div>
 
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
                 {selectedEvent.title}
               </h2>
 
@@ -777,6 +975,7 @@ const EventsPage = () => {
                 {selectedEvent.description}
               </p>
 
+              {/* Grid of Key Info */}
               <div
                 style={{
                   display: 'grid',
@@ -789,63 +988,110 @@ const EventsPage = () => {
                 }}
               >
                 <div style={{ fontSize: '0.85rem' }}>
-                  <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>DATE</div>
+                  <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>EVENT DATE</div>
                   <div style={{ fontWeight: 700, color: '#1e293b' }}>{selectedEvent.date}</div>
                 </div>
                 <div style={{ fontSize: '0.85rem' }}>
-                  <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>TIME</div>
+                  <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>TIMINGS / FORMAT</div>
                   <div style={{ fontWeight: 700, color: '#1e293b' }}>{selectedEvent.time}</div>
                 </div>
                 <div style={{ fontSize: '0.85rem' }}>
-                  <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>LOCATION</div>
+                  <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>VENUE / PLATFORM</div>
                   <div style={{ fontWeight: 700, color: '#1e293b' }}>{selectedEvent.location}</div>
                 </div>
                 <div style={{ fontSize: '0.85rem' }}>
                   <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>ORGANIZED BY</div>
-                  <div style={{ fontWeight: 700, color: '#1e293b' }}>{selectedEvent.organizer || 'Department Cell'}</div>
+                  <div style={{ fontWeight: 700, color: '#1e293b' }}>
+                    {selectedEvent.organizer || 'Host Committee'}
+                  </div>
                 </div>
               </div>
 
-              {selectedEvent.externalUrl && (
+              {/* EXTERNAL HACKATHON VERIFIED LINK SECTION */}
+              {selectedEvent.externalUrl ? (
                 <div
                   style={{
-                    padding: '14px',
+                    padding: '18px 20px',
                     backgroundColor: '#eff6ff',
-                    borderRadius: '12px',
+                    borderRadius: '14px',
                     border: '1px solid #bfdbfe',
-                    marginBottom: '20px',
+                    marginBottom: '22px',
                   }}
                 >
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e40af' }}>
-                    Original External Registration Link
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '18px' }}>🌐</span>
+                    <span style={{ fontSize: '0.96rem', fontWeight: 800, color: '#1e40af' }}>
+                      Original External Registration Portal
+                    </span>
                   </div>
-                  <p style={{ fontSize: '0.8rem', color: '#1d4ed8', marginTop: '2px', marginBottom: '8px' }}>
-                    Access official hackathon problem statements, rules, and national team portal.
+                  <p style={{ fontSize: '0.84rem', color: '#1e3a8a', lineHeight: 1.5, marginBottom: '14px' }}>
+                    This hackathon is officially managed on <strong>{selectedEvent.platform || 'the organizer website'}</strong>. All team applications, problem statement choices, and project submissions take place directly on their official link.
                   </p>
-                  <a
-                    href={selectedEvent.externalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn btn-primary"
-                    style={{ fontSize: '0.82rem', padding: '7px 14px' }}
-                  >
-                    Open {selectedEvent.externalUrl} <ExternalLink size={14} />
-                  </a>
-                </div>
-              )}
 
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <a
+                      href={selectedEvent.externalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary"
+                      style={{
+                        flex: 1,
+                        padding: '11px 18px',
+                        fontSize: '0.92rem',
+                        fontWeight: 700,
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
+                      }}
+                    >
+                      <span>Proceed to Official Registration ({selectedEvent.platform || 'Platform'})</span>
+                      <ExternalLink size={16} />
+                    </a>
+
+                    <button
+                      onClick={(e) => handleCopyLink(selectedEvent.externalUrl, selectedEvent.platform, e)}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '11px 16px',
+                        fontSize: '0.86rem',
+                        fontWeight: 600,
+                        borderRadius: '10px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <Share2 size={16} /> Copy Link
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Bottom Close / Internal RSVP Buttons */}
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button
-                  onClick={(e) => handleRegisterToggle(selectedEvent._id, e)}
-                  className={isUserRegistered(selectedEvent) ? 'btn btn-success' : 'btn btn-primary'}
-                  style={{ flex: 1, padding: '12px', borderRadius: '12px', fontSize: '0.95rem' }}
-                >
-                  {isUserRegistered(selectedEvent) ? 'Cancel Registration' : 'Register for Event'}
-                </button>
+                {!selectedEvent.externalUrl ? (
+                  <button
+                    onClick={(e) => handleInternalRsvpToggle(selectedEvent._id, e)}
+                    className={isUserRegistered(selectedEvent) ? 'btn btn-success' : 'btn btn-primary'}
+                    style={{ flex: 1, padding: '12px', borderRadius: '12px', fontSize: '0.95rem' }}
+                  >
+                    {isUserRegistered(selectedEvent) ? 'Cancel Campus Seat RSVP' : 'Reserve In-Person Campus Seat'}
+                  </button>
+                ) : null}
+
                 <button
                   onClick={() => setSelectedEvent(null)}
                   className="btn btn-secondary"
-                  style={{ padding: '12px 20px', borderRadius: '12px' }}
+                  style={{
+                    flex: selectedEvent.externalUrl ? 1 : 'none',
+                    padding: '12px 24px',
+                    borderRadius: '12px',
+                    fontWeight: 600,
+                  }}
                 >
                   Close
                 </button>

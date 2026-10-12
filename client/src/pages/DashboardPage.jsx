@@ -595,13 +595,32 @@ const DashboardPage = () => {
                   >
                     {ev.title}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.74rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <Clock size={12} /> {ev.date}
                     </span>
                     <span style={{ fontSize: '0.74rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <MapPin size={12} /> {ev.location}
                     </span>
+                    {ev.externalUrl && (
+                      <a
+                        href={ev.externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          fontSize: '0.74rem',
+                          color: '#2563eb',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          marginLeft: 'auto',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        Register on {ev.platform || 'Portal'} <ExternalLink size={11} />
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>

@@ -311,33 +311,56 @@ const AnnouncementsPage = () => {
                         {ann.content}
                       </p>
 
-                      {/* Footer Actions: Original external link (no duplicates!) */}
+                      {/* Footer Actions: Original external link (direct official registration) */}
                       <div
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '14px',
+                          gap: '10px',
+                          flexWrap: 'wrap',
                           marginTop: '16px',
                         }}
                       >
                         {ann.externalLink && (
-                          <a
-                            href={ann.externalLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn btn-outline"
-                            style={{
-                              fontSize: '0.82rem',
-                              padding: '6px 14px',
-                              borderRadius: '8px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                            }}
-                          >
-                            <span>Open Official Portal</span>
-                            <ExternalLink size={14} />
-                          </a>
+                          <>
+                            <a
+                              href={ann.externalLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-primary"
+                              style={{
+                                fontSize: '0.82rem',
+                                padding: '7px 16px',
+                                borderRadius: '8px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                textDecoration: 'none',
+                                fontWeight: 700,
+                              }}
+                            >
+                              <span>Register on Official Portal</span>
+                              <ExternalLink size={14} />
+                            </a>
+
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(ann.externalLink);
+                              }}
+                              className="btn btn-secondary"
+                              style={{
+                                fontSize: '0.8rem',
+                                padding: '7px 12px',
+                                borderRadius: '8px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                              title="Copy official URL"
+                            >
+                              <Share2 size={13} /> Copy Link
+                            </button>
+                          </>
                         )}
 
                         <button
